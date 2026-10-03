@@ -1,0 +1,7 @@
+# Archivos temporales y respaldos de Draw.io
+.*.bkp
+~$*
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

@@ -56,19 +56,36 @@ def inicializar_datos_semilla() -> None:
             direccion="Calle Balmaceda 456, Santiago",
             id_trabajador="DOC01",
             clave="profe123",
-            especialidad="Ciencias de la Computación"
+            especialidad="Educación General Básica"
         )
         TrabajadorDAO.insertar(profe)
 
-    # 2. Crear materias iniciales si no existen
-    if not AsignaturaDAO.obtener_por_nombre("Programación Orientada a Objeto"):
-        AsignaturaDAO.insertar(Asignatura("Programación Orientada a Objeto"))
+    # 2. Asignaturas regulares del colegio (currículum escolar chileno)
+    asignaturas_escolares = [
+        "Lenguaje y Comunicación",
+        "Matemáticas",
+        "Ciencias Naturales",
+        "Historia, Geografía y Ciencias Sociales",
+        "Inglés",
+        "Educación Física y Salud"
+    ]
+    for nom in asignaturas_escolares:
+        if not AsignaturaDAO.obtener_por_nombre(nom):
+            AsignaturaDAO.insertar(Asignatura(nom))
 
-    if not AsignaturaDAO.obtener_por_nombre("Bases de Datos Relacionales"):
-        AsignaturaDAO.insertar(Asignatura("Bases de Datos Relacionales"))
-
-    if not AsignaturaDAO.obtener_por_nombre("Taller de Robótica"):
-        AsignaturaDAO.insertar(Electivo("Taller de Robótica", cupo_maximo=3))
+    # 3. Talleres electivos adaptados a colegio regular de niños en Chile
+    electivos_escolares = [
+        ("Taller de Teatro Escolar", 15),
+        ("Taller de Pintura y Artes Plásticas", 12),
+        ("Taller de Fútbol Escolar", 20),
+        ("Taller de Ajedrez Infantil", 10),
+        ("Taller de Música y Coro", 15),
+        ("Taller de Huerto y Medio Ambiente", 8),
+        ("Taller de Robótica Infantil", 12)
+    ]
+    for nom, cupo in electivos_escolares:
+        if not AsignaturaDAO.obtener_por_nombre(nom):
+            AsignaturaDAO.insertar(Electivo(nom, cupo_maximo=cupo))
 
 
 def menu_autenticacion() -> Trabajador | None:
@@ -163,7 +180,7 @@ def consultar_estudiante_por_rut() -> None:
         print(f"  • Email:          {estudiante.email}")
         print(f"  • Dirección:      {estudiante.direccion}")
         print(f"  • Estado Deuda:   {'CON DEUDA PENDIENTE' if estudiante.tiene_deuda_pendiente else 'AL DÍA'}")
-        print(f"  • Apto Matrícula: {'SÍ' if estudiante.validar_matricula() else 'NO (Morosidad activa)'}")
+        print(f"  • Apto Matrícula: {'SÍ' if estudiante.validar_deuda() else 'NO (Morosidad activa)'}")
         print("-" * 50)
     else:
         print(f"\nNo se encontró ningún estudiante con el RUT {rut}.")
@@ -463,9 +480,21 @@ def ejecutar_demostracion_completa() -> None:
 
     mat_valida = Matricula(id_matricula=9902, fecha="2026-03-01", arancel_uf=4.0, semestre="2026-1", estudiante=e_al_dia)
     print("  -> Intentando matricular estudiante al día:")
-    asig_poo = AsignaturaDAO.obtener_por_nombre("Programación Orientada a Objeto")
-    elec_rob = AsignaturaDAO.obtener_por_nombre("Taller de Robótica")
-    MatriculaDAO.insertar(mat_valida, [(1, asig_poo), (3, elec_rob)])
+    asig_lenguaje = AsignaturaDAO.obtener_por_nombre("Lenguaje y Comunicación")
+    elec_teatro = AsignaturaDAO.obtener_por_nombre("Taller de Teatro Escolar")
+
+    # Restablece cupos para la demostración y busca los IDs dinámicos
+    with ConexionBD.obtener_conexion() as conn:
+        conn.execute("UPDATE asignatura SET cupo_disponible = cupo_maximo WHERE tipo = 'Electivo';")
+        conn.commit()
+        cur = conn.cursor()
+        cur.execute("SELECT id_asignatura FROM asignatura WHERE nombre = ?;", (asig_lenguaje.nombre,))
+        id_asig = cur.fetchone()["id_asignatura"]
+        cur.execute("SELECT id_asignatura FROM asignatura WHERE nombre = ?;", (elec_teatro.nombre,))
+        id_elec = cur.fetchone()["id_asignatura"]
+
+    elec_teatro._Electivo__cupo_disponible = elec_teatro.cupo_maximo
+    MatriculaDAO.insertar(mat_valida, [(id_asig, asig_lenguaje), (id_elec, elec_teatro)])
 
     # 4. Cálculo de arancel en pesos
     arancel = Arancel(mat_valida.arancel_uf)
@@ -478,7 +507,7 @@ def ejecutar_demostracion_completa() -> None:
     pr = Prueba("EV-1", "2026-04-15", 40.0, 90.0, 100.0)
     tr = Trabajo("EV-2", "2026-05-20", 30.0, "SOBRESALIENTE")
     po = PresentacionOral("EV-3", "2026-06-10", 30.0, "15 min", 15)
-    asig = Asignatura("Ingeniería de Software")
+    asig = Asignatura("Ciencias Naturales")
     asig.agregar_evaluacion(pr)
     asig.agregar_evaluacion(tr)
     asig.agregar_evaluacion(po)

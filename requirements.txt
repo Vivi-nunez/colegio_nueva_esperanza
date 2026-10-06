@@ -1,0 +1,9 @@
+# Dependencias del Sistema Colegio Nueva Esperanza - Sumativa 2
+# Librería oficial para el consumo de API REST externa (mindicador.cl / IndicadorUF)
+requests==2.34.2
+
+# Dependencias asociadas
+urllib3==2.8.0
+certifi==2026.7.22
+charset-normalizer==3.5.2
+idna==3.20

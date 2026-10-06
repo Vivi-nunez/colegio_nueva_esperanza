@@ -63,13 +63,17 @@ class AsignaturaDAO:
 
     @classmethod
     def obtener_por_nombre(cls, nombre: str) -> Optional[Asignatura]:
-        """Busca una asignatura por su nombre."""
-        sql = "SELECT * FROM asignatura WHERE UPPER(nombre) = ?;"
+        """Busca una asignatura por su nombre de forma insensible a mayúsculas."""
+        nombre_limpio = nombre.strip().lower()
+        sql = "SELECT * FROM asignatura;"
         try:
             with ConexionBD.obtener_conexion() as conn:
                 cursor = conn.cursor()
-                cursor.execute(sql, (nombre.strip().upper(),))
-                return cls._mapear_fila(cursor.fetchone())
+                cursor.execute(sql)
+                for fila in cursor.fetchall():
+                    if fila["nombre"].strip().lower() == nombre_limpio:
+                        return cls._mapear_fila(fila)
+                return None
         except Exception as error:
             print(f"[AsignaturaDAO] Error al buscar asignatura por nombre: {error}")
             return None

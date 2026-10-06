@@ -10,3 +10,8 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Bases de datos SQLite locales
+*.db
+*.sqlite
+*.sqlite3

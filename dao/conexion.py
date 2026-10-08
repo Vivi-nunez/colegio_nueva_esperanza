@@ -97,9 +97,62 @@ class ConexionBD:
             FOREIGN KEY (rut_estudiante) REFERENCES estudiante (rut) ON DELETE CASCADE,
             FOREIGN KEY (id_asignatura) REFERENCES asignatura (id_asignatura) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS profesor_asignatura (
+            id_trabajador TEXT NOT NULL,
+            id_asignatura INTEGER NOT NULL,
+            PRIMARY KEY (id_trabajador, id_asignatura),
+            FOREIGN KEY (id_trabajador) REFERENCES trabajador (id_trabajador) ON DELETE CASCADE,
+            FOREIGN KEY (id_asignatura) REFERENCES asignatura (id_asignatura) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS evaluacion_registrada (
+            id_registro INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_evaluacion TEXT NOT NULL,
+            rut_estudiante TEXT NOT NULL,
+            id_asignatura INTEGER NOT NULL,
+            id_profesor TEXT NOT NULL,
+            tipo_evaluacion TEXT NOT NULL CHECK (tipo_evaluacion IN ('Prueba', 'Trabajo', 'Presentación oral')),
+            fecha TEXT NOT NULL,
+            periodo_academico TEXT NOT NULL DEFAULT '',
+            ponderacion REAL NOT NULL CHECK (ponderacion > 0 AND ponderacion <= 100),
+            nota REAL NOT NULL CHECK (nota >= 1.0 AND nota <= 7.0),
+            observacion TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (rut_estudiante) REFERENCES estudiante (rut) ON DELETE CASCADE,
+            FOREIGN KEY (id_asignatura) REFERENCES asignatura (id_asignatura) ON DELETE CASCADE,
+            FOREIGN KEY (id_profesor) REFERENCES trabajador (id_trabajador) ON DELETE RESTRICT
+        );
+
+        CREATE TABLE IF NOT EXISTS cobro_mensual (
+            id_cobro INTEGER PRIMARY KEY AUTOINCREMENT,
+            rut_estudiante TEXT NOT NULL,
+            periodo TEXT NOT NULL,
+            arancel_uf REAL NOT NULL CHECK (arancel_uf > 0),
+            valor_uf REAL NOT NULL CHECK (valor_uf > 0),
+            total_pesos INTEGER NOT NULL CHECK (total_pesos > 0),
+            fecha_emision TEXT NOT NULL,
+            UNIQUE (rut_estudiante, periodo),
+            FOREIGN KEY (rut_estudiante) REFERENCES estudiante (rut) ON DELETE RESTRICT
+        );
+
+        CREATE TABLE IF NOT EXISTS pago_mensual (
+            id_pago INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_cobro INTEGER NOT NULL,
+            monto_pesos INTEGER NOT NULL CHECK (monto_pesos > 0),
+            fecha_pago TEXT NOT NULL,
+            observacion TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (id_cobro) REFERENCES cobro_mensual (id_cobro) ON DELETE RESTRICT
+        );
         """
         with cls.obtener_conexion() as conexion:
             conexion.executescript(script_ddl)
+            columnas_evaluacion = {
+                fila["name"] for fila in conexion.execute("PRAGMA table_info(evaluacion_registrada);")
+            }
+            if "periodo_academico" not in columnas_evaluacion:
+                conexion.execute(
+                    "ALTER TABLE evaluacion_registrada ADD COLUMN periodo_academico TEXT NOT NULL DEFAULT '';"
+                )
             conexion.commit()
 
 

@@ -16,6 +16,16 @@ class EstudianteDAO:
         Inserta un nuevo estudiante en la base de datos de forma segura.
         Retorna True si la inserción fue exitosa, False si el RUT ya existe o hubo error.
         """
+        if not isinstance(estudiante, Estudiante):
+            return False
+        if not estudiante.validar_rut():
+            print("[EstudianteDAO] RUT inválido: no se acepta un estudiante con dígito verificador incorrecto.")
+            return False
+
+        if EstudianteDAO.obtener_por_rut(estudiante.rut):
+            print("[EstudianteDAO] El RUT ya existe en la base de datos.")
+            return False
+
         sql = """
         INSERT INTO estudiante (
             rut, primer_nombre, segundo_nombre, primer_apellido,

@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 
 
@@ -43,7 +44,23 @@ class Persona(ABC):
         """Setter para el RUT con validación básica de formato."""
         if not isinstance(valor, str) or not valor.strip():
             raise ValueError("El RUT no puede estar vacío y debe ser una cadena de texto.")
-        self.__rut = valor.strip().upper()
+
+        rut_normalizado = valor.strip().upper().replace(".", "")
+        if "-" in rut_normalizado:
+            cuerpo, dv = rut_normalizado.rsplit("-", 1)
+        else:
+            if len(rut_normalizado) < 2:
+                raise ValueError("El RUT debe tener formato válido, ejemplo 11.111.111-1.")
+            cuerpo = rut_normalizado[:-1]
+            dv = rut_normalizado[-1]
+
+        if not cuerpo or not cuerpo.isdigit() or len(cuerpo) < 2 or len(cuerpo) > 8:
+            raise ValueError("El RUT debe tener formato válido, ejemplo 11.111.111-1.")
+        if dv not in {str(i) for i in range(10)} and dv.upper() != "K":
+            raise ValueError("El dígito verificador del RUT es inválido.")
+
+        cuerpo_formateado = re.sub(r"(\d)(?=(\d{3})+(?!\d))", r"\1.", cuerpo)
+        self.__rut = f"{cuerpo_formateado}-{dv}"
 
     # --- PRIMER NOMBRE ---
     @property
@@ -106,9 +123,12 @@ class Persona(ABC):
     @email.setter
     def email(self, valor: str) -> None:
         """Setter para el correo electrónico con validación de estructura."""
-        if not isinstance(valor, str) or "@" not in valor or "." not in valor:
+        if not isinstance(valor, str):
+            raise ValueError("El correo electrónico debe ser una cadena de texto.")
+        email = valor.strip().lower()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
             raise ValueError("El correo electrónico debe ser válido (contener '@' y '.').")
-        self.__email = valor.strip().lower()
+        self.__email = email
 
     # --- DIRECCIÓN ---
     @property
@@ -149,7 +169,7 @@ class Persona(ABC):
         cuerpo = rut_limpio[:-1]
         dv = rut_limpio[-1]
 
-        if not cuerpo.isdigit():
+        if not cuerpo.isdigit() or not dv.isdigit() and dv.upper() != "K":
             return False
 
         suma = 0
@@ -169,7 +189,7 @@ class Persona(ABC):
         else:
             dv_esperado = str(resto)
 
-        return dv == dv_esperado
+        return dv.upper() == dv_esperado
 
     def obtener_nombre_completo(self) -> str:
         """Retorna el nombre completo de la persona formateado."""

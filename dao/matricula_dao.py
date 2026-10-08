@@ -1,5 +1,6 @@
 from typing import Optional
 from dao.conexion import ConexionBD
+from dao.cobro_mensual_dao import CobroMensualDAO
 from dao.estudiante_dao import EstudianteDAO
 from model.matricula import Matricula
 from model.detalle_matricula import DetalleMatricula
@@ -26,7 +27,11 @@ class MatriculaDAO:
 
         # Verificación de integridad financiera
         estudiante_db = EstudianteDAO.obtener_por_rut(matricula.estudiante.rut)
-        if not estudiante_db or estudiante_db.tiene_deuda_pendiente:
+        anio_matricula = int(matricula.fecha[:4])
+        deuda_anio_anterior = CobroMensualDAO.tiene_deuda_del_anio_anterior(
+            matricula.estudiante.rut, anio_matricula
+        )
+        if not estudiante_db or estudiante_db.tiene_deuda_pendiente or deuda_anio_anterior:
             print(f"[MatriculaDAO] Rechazada: El estudiante {matricula.estudiante.rut} tiene deuda o no existe.")
             return False
 

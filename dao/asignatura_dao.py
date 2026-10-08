@@ -78,6 +78,17 @@ class AsignaturaDAO:
             print(f"[AsignaturaDAO] Error al buscar asignatura por nombre: {error}")
             return None
 
+    @staticmethod
+    def obtener_id_por_nombre(nombre: str) -> Optional[int]:
+        sql = "SELECT id_asignatura FROM asignatura WHERE UPPER(nombre) = UPPER(?);"
+        try:
+            with ConexionBD.obtener_conexion() as conn:
+                row = conn.execute(sql, (nombre.strip(),)).fetchone()
+                return row["id_asignatura"] if row else None
+        except Exception as error:
+            print(f"[AsignaturaDAO] Error al buscar ID de asignatura: {error}")
+            return None
+
     @classmethod
     def listar_todas(cls) -> list[Asignatura]:
         """Retorna todas las asignaturas y electivos registrados."""

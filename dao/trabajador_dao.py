@@ -103,8 +103,7 @@ class TrabajadorDAO:
                 clave="temp"
             )
 
-        # Asigna directamente el hash almacenado previamente
-        instancia._Trabajador__clave_encrypted = fila["clave_encrypted"]
+        instancia.establecer_hash_clave(fila["clave_encrypted"])
         return instancia
 
     @classmethod

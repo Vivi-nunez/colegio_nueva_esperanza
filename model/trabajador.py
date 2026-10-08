@@ -67,6 +67,12 @@ class Trabajador(Persona):
             raise ValueError("La clave debe tener al menos 4 caracteres.")
         self.__clave_encrypted = hashlib.sha256(clave_plana.encode("utf-8")).hexdigest()
 
+    def establecer_hash_clave(self, hash_clave: str) -> None:
+        """Carga un hash ya existente sin recalcularlo ni manipularlo desde fuera."""
+        if not isinstance(hash_clave, str) or not hash_clave.strip():
+            raise ValueError("El hash de la clave no es válido.")
+        self.__clave_encrypted = hash_clave.strip()
+
     def autentificar(self, clave: str) -> bool:
         """
         Método del UML: Valida si la clave ingresada coincide con la contraseña almacenada.

@@ -58,6 +58,7 @@ python main.py
 ### Credenciales de demostración inicial:
 - **Administrativo:** ID `ADM01` | Clave `admin123`
 - **Profesor:** ID `DOC01` | Clave `profe123`
+- **Profesores por asignatura:** ID `DOC-ASIG-<id de asignatura>` | Clave `profe123`. La relación entre cada materia y su ID se muestra en el inicio de sesión.
 
 ---
 

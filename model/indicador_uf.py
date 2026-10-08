@@ -10,6 +10,7 @@ class IndicadorUF:
     def __init__(self, valor_diario: float = 0.0) -> None:
         """Constructor que inicializa el valor diario de la UF."""
         self.__valor_diario = 0.0
+        self.__obtenido_desde_api = False
         if valor_diario > 0:
             self.valor_diario = valor_diario
         else:
@@ -31,6 +32,11 @@ class IndicadorUF:
             raise ValueError("El valor diario de la UF debe ser un número positivo.")
         self.__valor_diario = float(valor)
 
+    @property
+    def obtenido_desde_api(self) -> bool:
+        """Indica si el valor vigente se obtuvo de la API, no del respaldo local."""
+        return self.__obtenido_desde_api
+
     # ---------------------------------------------------------
     # Métodos de negocio y consumo de API
     # ---------------------------------------------------------
@@ -47,11 +53,13 @@ class IndicadorUF:
                 datos = respuesta.json()
                 # Extrae el primer valor de la serie histórica
                 self.valor_diario = float(datos["serie"][0]["valor"])
+                self.__obtenido_desde_api = True
                 return self.__valor_diario
         except Exception:
             pass
 
         # Valor de respaldo seguro en caso de contingencia o sin internet
+        self.__obtenido_desde_api = False
         if self.__valor_diario <= 0:
             self.valor_diario = 38500.0
 

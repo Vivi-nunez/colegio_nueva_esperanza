@@ -62,6 +62,28 @@ python main.py
 
 ---
 
+## 4. Uso crítico de IA y trazabilidad académica
+
+Este registro describe una interacción concreta de apoyo con IA. No se registran recomendaciones rechazadas porque no hay evidencia en esta interacción de una recomendación descartada.
+
+| Problema consultado | Propuesta recibida | Decisión y cambios realizados | Validación |
+|---|---|---|---|
+| Distinguir las reglas de deuda pendiente y cupo agotado de errores técnicos durante una matrícula. | Definir excepciones específicas de dominio y capturarlas en la capa de presentación, manteniendo la transacción de SQLite. | Se implementaron `ReglaNegocioError`, `DeudaPendienteError` y `CupoAgotadoError` en `model/excepciones.py`. `MatriculaDAO.insertar()` las lanza para las reglas correspondientes y `main.py` muestra mensajes al usuario. | Se ejecutó `python -m pytest tests/test_role_and_rut_validation.py -q`: 24 pruebas pasaron. |
+
+### Plantilla para futuras consultas
+
+Completa una fila solo después de verificar los detalles de la interacción y ejecutar las pruebas indicadas. Si no se aceptó o descartó una recomendación, describe qué se cambió y por qué; no atribuyas una decisión a la IA sin evidencia.
+
+| Fecha | Problema consultado | Propuesta recibida | Decisión (adoptada, modificada o descartada) y motivo | Cambios verificables | Pruebas ejecutadas y resultado |
+|---|---|---|---|---|---|
+| dd/mm/aaaa | Completar con el caso real | Completar con la propuesta real | Completar según la decisión tomada | Archivos y cambios comprobables | Comando y resultado real |
+
+### Relación con la rúbrica
+
+El registro permite explicar el uso de IA con evidencia: qué problema se consultó, qué propuesta se evaluó, cuál fue la decisión y cómo se comprobó el resultado. La defensa debe distinguir las sugerencias de la IA de las decisiones y verificaciones realizadas por el equipo.
+
+---
+
 ## Estructura del Repositorio
 - `Colegio_3.drawio`: Diagrama de clases UML oficial del proyecto.
 - `model/`: 16 módulos de dominio bajo POO.

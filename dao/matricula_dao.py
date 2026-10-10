@@ -1,3 +1,4 @@
+import sqlite3
 from typing import Optional
 from dao.conexion import ConexionBD
 from dao.cobro_mensual_dao import CobroMensualDAO
@@ -6,6 +7,7 @@ from model.matricula import Matricula
 from model.detalle_matricula import DetalleMatricula
 from model.asignatura import Asignatura
 from model.electivo import Electivo
+from model.excepciones import DeudaPendienteError, CupoAgotadoError
 
 
 class MatriculaDAO:
@@ -31,9 +33,12 @@ class MatriculaDAO:
         deuda_anio_anterior = CobroMensualDAO.tiene_deuda_del_anio_anterior(
             matricula.estudiante.rut, anio_matricula
         )
-        if not estudiante_db or estudiante_db.tiene_deuda_pendiente or deuda_anio_anterior:
-            print(f"[MatriculaDAO] Rechazada: El estudiante {matricula.estudiante.rut} tiene deuda o no existe.")
-            return False
+        if not estudiante_db:
+            raise ValueError(f"El estudiante {matricula.estudiante.rut} no existe en el sistema.")
+        if estudiante_db.tiene_deuda_pendiente or deuda_anio_anterior:
+            raise DeudaPendienteError(
+                f"El estudiante {matricula.estudiante.rut} tiene deuda pendiente y no puede matricularse."
+            )
 
         sql_matricula = """
         INSERT INTO matricula (id_matricula, rut_estudiante, fecha, arancel_uf, semestre)
@@ -53,7 +58,6 @@ class MatriculaDAO:
             with ConexionBD.obtener_conexion() as conn:
                 cursor = conn.cursor()
 
-                # 1. Inserta la cabecera de la matrícula
                 cursor.execute(sql_matricula, (
                     matricula.id_matricula,
                     matricula.estudiante.rut,
@@ -62,14 +66,14 @@ class MatriculaDAO:
                     matricula.semestre
                 ))
 
-                # 2. Inserta los detalles de asignaturas asociadas
                 if lista_asignaturas:
                     for id_asig, obj_asig in lista_asignaturas:
                         if isinstance(obj_asig, Electivo):
-                            # Descuenta cupo en base de datos asegurando atomicidad
                             cursor.execute(sql_descontar_cupo, (id_asig,))
                             if cursor.rowcount == 0:
-                                raise ValueError(f"Cupo agotado para el electivo '{obj_asig.nombre}'.")
+                                raise CupoAgotadoError(
+                                    f"Cupo agotado para el electivo '{obj_asig.nombre}'."
+                                )
 
                         cursor.execute(sql_detalle, (matricula.id_matricula, id_asig, "Inscrita"))
 
@@ -77,9 +81,14 @@ class MatriculaDAO:
                 print(f"[MatriculaDAO] Matrícula N°{matricula.id_matricula} registrada exitosamente.")
                 return True
 
+        except (DeudaPendienteError, CupoAgotadoError):
+            raise
+        except sqlite3.Error as error:
+            print(f"[MatriculaDAO] Error de base de datos en la transacción de matrícula: {error}")
+            raise
         except Exception as error:
-            print(f"[MatriculaDAO] Error en la transacción de matrícula: {error}")
-            return False
+            print(f"[MatriculaDAO] Error inesperado en la transacción de matrícula: {error}")
+            raise
 
     @staticmethod
     def obtener_por_id(id_matricula: int) -> Optional[Matricula]:

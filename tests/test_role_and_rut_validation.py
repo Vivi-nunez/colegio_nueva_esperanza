@@ -1,5 +1,7 @@
-import pytest
+import sqlite3
 from types import SimpleNamespace
+
+import pytest
 
 from dao import conexion as conexion_module
 from dao.asignatura_dao import AsignaturaDAO
@@ -16,6 +18,7 @@ from model.electivo import Electivo
 from model.matricula import Matricula
 from model.profesor import Profesor
 from model.administrativo import Administrativo
+from model.excepciones import DeudaPendienteError, CupoAgotadoError
 
 import main
 from model.calificacion import Calificacion
@@ -244,7 +247,8 @@ def test_student_with_debt_cannot_be_enrolled(monkeypatch, tmp_path):
     estudiante = _estudiante(tiene_deuda=True)
     assert EstudianteDAO.insertar(estudiante)
 
-    assert not MatriculaDAO.insertar(_matricula(1002, estudiante))
+    with pytest.raises(DeudaPendienteError, match="deuda pendiente"):
+        MatriculaDAO.insertar(_matricula(1002, estudiante))
     assert MatriculaDAO.obtener_por_id(1002) is None
 
 
@@ -258,7 +262,8 @@ def test_full_elective_rejects_enrollment_and_rolls_back(monkeypatch, tmp_path):
     id_electivo = AsignaturaDAO.insertar(electivo)
 
     assert MatriculaDAO.insertar(_matricula(1003, primer_estudiante), [(id_electivo, electivo)])
-    assert not MatriculaDAO.insertar(_matricula(1004, segundo_estudiante), [(id_electivo, electivo)])
+    with pytest.raises(CupoAgotadoError, match="Cupo agotado"):
+        MatriculaDAO.insertar(_matricula(1004, segundo_estudiante), [(id_electivo, electivo)])
     assert MatriculaDAO.obtener_por_id(1004) is None
     assert AsignaturaDAO.obtener_por_id(id_electivo).cupo_disponible == 0
 
@@ -390,8 +395,23 @@ def test_unpaid_previous_year_monthly_charge_blocks_enrollment(monkeypatch, tmp_
     assert EstudianteDAO.insertar(estudiante)
     assert CobroMensualDAO.emitir(estudiante.rut, "2025-12", 3.0, 40000)
 
-    assert not MatriculaDAO.insertar(_matricula(1005, estudiante))
+    with pytest.raises(DeudaPendienteError, match="deuda pendiente"):
+        MatriculaDAO.insertar(_matricula(1005, estudiante))
     assert MatriculaDAO.obtener_por_id(1005) is None
+
+
+def test_unexpected_database_error_is_not_misclassified(monkeypatch, tmp_path):
+    _usar_base_temporal(monkeypatch, tmp_path)
+    estudiante = _estudiante()
+    assert EstudianteDAO.insertar(estudiante)
+
+    def _fallar_conexion():
+        raise sqlite3.DatabaseError("Base de datos caida")
+
+    monkeypatch.setattr("dao.matricula_dao.ConexionBD.obtener_conexion", _fallar_conexion)
+
+    with pytest.raises(sqlite3.DatabaseError, match="Base de datos caida"):
+        MatriculaDAO.insertar(_matricula(1006, estudiante))
 
 
 def test_invalid_rut_is_rejected_before_enrollment_lookup(monkeypatch, capsys):

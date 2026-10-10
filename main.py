@@ -16,6 +16,7 @@ from model import (
     Trabajo,
     PresentacionOral,
 )
+from model.excepciones import DeudaPendienteError, CupoAgotadoError
 from dao import (
     ConexionBD,
     EstudianteDAO,
@@ -404,7 +405,8 @@ def registrar_matricula_estudiante(usuario: Trabajador) -> None:
 
     print(f"Estudiante seleccionado: {estudiante.obtener_nombre_completo()}")
 
-    # Validación crítica de la rúbrica
+    # Validación crítica de la rúbrica. El control principal se realiza en MatriculaDAO,
+    # pero aquí se deja un mensaje de usuario claro antes de continuar con la inscripción.
     if estudiante.tiene_deuda_pendiente:
         print("\n" + "!" * 60)
         print(" [MATRÍCULA RECHAZADA - BLOQUEO ADMINISTRATIVO]")
@@ -466,21 +468,24 @@ def registrar_matricula_estudiante(usuario: Trabajador) -> None:
                 asignaturas_seleccionadas.append((id_asig, asig_obj))
                 print(f"  -> Asignatura '{asig_obj.nombre}' agregada a la matrícula.")
 
-        # Transacción en base de datos
-        if MatriculaDAO.insertar(matricula, asignaturas_seleccionadas):
-            print(f"\n[CONTRATO EMITIDO] Matrícula N°{matricula.id_matricula} formalizada exitosamente.")
-            # Calcular arancel en pesos con la UF actual
-            indicador_uf = IndicadorUF()
-            uf_actual = indicador_uf.valor_diario
-            arancel_calc = Arancel(matricula.arancel_uf)
-            total_pesos = arancel_calc.calcular_monto_pesos(indicador_uf)
-            if not indicador_uf.obtenido_desde_api:
-                print("[AVISO] Se calculó el arancel con el valor UF de respaldo; confirme el monto antes de cobrar.")
-            print(f"  • Estudiante: {estudiante.obtener_nombre_completo()}")
-            print(f"  • Arancel:    {matricula.arancel_uf:.2f} UF (~ ${total_pesos:,.0f} CLP)")
-            print(f"  • Materias:   {len(asignaturas_seleccionadas)} inscritas.")
-        else:
-            print("[ERROR] No se pudo registrar la matrícula en la base de datos.")
+        try:
+            if MatriculaDAO.insertar(matricula, asignaturas_seleccionadas):
+                print(f"\n[CONTRATO EMITIDO] Matrícula N°{matricula.id_matricula} formalizada exitosamente.")
+                indicador_uf = IndicadorUF()
+                uf_actual = indicador_uf.valor_diario
+                arancel_calc = Arancel(matricula.arancel_uf)
+                total_pesos = arancel_calc.calcular_monto_pesos(indicador_uf)
+                if not indicador_uf.obtenido_desde_api:
+                    print("[AVISO] Se calculó el arancel con el valor UF de respaldo; confirme el monto antes de cobrar.")
+                print(f"  • Estudiante: {estudiante.obtener_nombre_completo()}")
+                print(f"  • Arancel:    {matricula.arancel_uf:.2f} UF (~ ${total_pesos:,.0f} CLP)")
+                print(f"  • Materias:   {len(asignaturas_seleccionadas)} inscritas.")
+            else:
+                print("[ERROR] No se pudo registrar la matrícula en la base de datos.")
+        except DeudaPendienteError as error:
+            print(f"\n[MATRÍCULA RECHAZADA] {error}")
+        except CupoAgotadoError as error:
+            print(f"\n[ELECTIVO SIN CUPOS] {error}")
 
     except ValueError as ve:
         print(f"[ERROR]: {ve}")
@@ -846,7 +851,10 @@ def ejecutar_demostracion_completa() -> None:
 
     mat_moroso = Matricula(id_matricula=9901, fecha="2026-03-01", arancel_uf=4.0, semestre="2026-1", estudiante=e_moroso)
     print("  -> Intentando matricular estudiante moroso (debe ser bloqueado):")
-    MatriculaDAO.insertar(mat_moroso)
+    try:
+        MatriculaDAO.insertar(mat_moroso)
+    except DeudaPendienteError as error:
+        print(f"    [BLOQUEADO] {error}")
 
     mat_valida = Matricula(id_matricula=9902, fecha="2026-03-01", arancel_uf=4.0, semestre="2026-1", estudiante=e_al_dia)
     print("  -> Intentando matricular estudiante al día:")
@@ -864,7 +872,10 @@ def ejecutar_demostracion_completa() -> None:
         id_elec = cur.fetchone()["id_asignatura"]
 
     elec_teatro._Electivo__cupo_disponible = elec_teatro.cupo_maximo
-    MatriculaDAO.insertar(mat_valida, [(id_asig, asig_lenguaje), (id_elec, elec_teatro)])
+    try:
+        MatriculaDAO.insertar(mat_valida, [(id_asig, asig_lenguaje), (id_elec, elec_teatro)])
+    except (DeudaPendienteError, CupoAgotadoError) as error:
+        print(f"    [BLOQUEADO] {error}")
 
     # 4. Cálculo de arancel en pesos
     arancel = Arancel(mat_valida.arancel_uf)

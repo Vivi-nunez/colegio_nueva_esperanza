@@ -14,6 +14,7 @@ from .asignatura import Asignatura
 from .electivo import Electivo
 from .detalle_matricula import DetalleMatricula
 from .matricula import Matricula
+from .excepciones import ReglaNegocioError, DeudaPendienteError, CupoAgotadoError
 
 __all__ = [
     "Persona",
@@ -32,4 +33,7 @@ __all__ = [
     "Electivo",
     "DetalleMatricula",
     "Matricula",
+    "ReglaNegocioError",
+    "DeudaPendienteError",
+    "CupoAgotadoError",
 ]
